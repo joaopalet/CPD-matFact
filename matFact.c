@@ -11,7 +11,8 @@
 
 int iter, nF, nU, nI, nnonzero;
 int **A;
-double **L, **R, **RT, **B;
+int **nnonzero_positions;
+double **L, **R, **RT, **B, **Lnew, **Rnew;
 double alpha;
 
 
@@ -95,8 +96,33 @@ void matrix_mult(double **X, double **Y, double **Z, int n, int m, int p) {
         for (int j = 0; j < m; j++) {
             Z[i][j] = 0;
             for (int k = 0; k < p; k++)
-                Z[i][j] += X[i][k] * Y[j][k]; 
+                Z[i][j] += X[i][k] * Y[j][k];
         }
+    }
+}
+
+void calculate(){
+    /*int i, j, n, k, y
+    for (n = 0; n < nnonzero; n++) {
+        for (k = 0; k < nF; k++) {
+            i = nnonzero_positions[n][0];
+            j = nnonzero_positions[n][1];
+
+            for (y = 0; n < nnonzero; n++) {
+                int i2 = nnonzero_positions[y][0]
+                2 * A[i][j] - B[i][j]*(-1* RT[j][k]);
+
+        }
+
+    }*/
+
+}
+
+void matrix_loop(){
+    for (int i = 0; i < iter; i++) {
+        matrix_mult(L, RT, B, nU, nI, nF);
+        calculate();
+
     }
 }
 
@@ -116,6 +142,10 @@ int main() {
     B = create_matrix_double(nU, nI);
     L = create_matrix_double(nU, nF);
     R = create_matrix_double(nF, nI);
+    Lnew = create_matrix_double(nU, nF);
+    Rnew = create_matrix_double(nF, nI);
+    nnonzero_positions = create_matrix_int(nnonzero, 2);
+
     random_fill_LR();
     RT = transpose_matrix(R, nF, nI);
 
@@ -128,6 +158,8 @@ int main() {
         scanf("%lf", &v);
 
         A[n][m] = v;
+        nnonzero_positions[i][0] = n;
+        nnonzero_positions[i][1] = m;
     }
 
     matrix_mult(L, RT, B, nU, nI, nF);
@@ -137,6 +169,7 @@ int main() {
     print_matrix_double(R, nF, nI);
     print_matrix_double(RT, nI, nF);
     print_matrix_double(B, nU, nI);
+    print_matrix_int(nnonzero_positions, nnonzero, 2);
 
     return 0;
 }
