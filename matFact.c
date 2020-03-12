@@ -1,107 +1,26 @@
 // Serial Implementation - Group 5
-
 #include <stdio.h>
 #include <stdlib.h>
+#include "matrix.h"
 
+// Macros
 #define RAND01 ((double) random() / (double) RAND_MAX)
 
-
+// Function declarations
+void random_fill_LR();
+void read_input(char **argv);
+void create_matrix_structures();
+void free_matrix_structures();
 
 // Global Variables
-
-int iter, nF, nU, nI, nnonzero;
+int iterations, nFeatures, nUsers, nItems, nnonzero;
 int **A;
 int **nnonzero_positions;
 double **L, **R, **RT, **B, **Lnew, **Rnew;
 double alpha;
 
 
-
-// Auxiliary Functions
-
-void print_matrix_int(int **M, int r, int c) {
-    for (int i = 0; i < r; i++) {
-        for (int j = 0; j < c; j++)
-            printf("%d ", M[i][j]);
-        printf("\n");
-    }
-
-    printf("\n");
-}
-
-
-
-void print_matrix_double(double **M, int r, int c) {
-    for (int i = 0; i < r; i++) {
-        for (int j = 0; j < c; j++)
-            printf("%f ", M[i][j]);
-        printf("\n");
-    }
-
-    printf("\n");
-}
-
-
-
-int **create_matrix_int(int r, int c) {
-    int **M = (int **)malloc(r * sizeof(int *)); 
-
-    for (int i= 0; i < r; i++) 
-         M[i] = (int *) calloc(c, sizeof(int));
-
-    return M;
-}
-
-
-
-double **create_matrix_double(int r, int c) {
-    double **M = (double **)malloc(r * sizeof(double *)); 
-
-    for (int i= 0; i < r; i++) 
-         M[i] = (double *) calloc(c, sizeof(double));
-
-    return M;
-}
-
-
-
-void random_fill_LR() {
-    srandom(0);
-
-    for (int i = 0; i < nU; i++)
-        for (int j = 0; j < nF; j++)
-            L[i][j] = RAND01 / (double) nF;
-
-    for (int i = 0; i < nF; i++)
-        for (int j = 0; j < nI; j++)
-            R[i][j] = RAND01 / (double) nF;
-}
-
-
-
-double **transpose_matrix(double **M, int n, int m) {
-    double **MT = create_matrix_double(m, n);
-
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < m; j++)
-            MT[j][i] = M[i][j];
-
-    return MT;
-}
-
-
-
-void matrix_mult(double **X, double **Y, double **Z, int n, int m, int p) {
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < m; j++) {
-            Z[i][j] = 0;
-            for (int k = 0; k < p; k++)
-                Z[i][j] += X[i][k] * Y[j][k];
-        }
-    }
-}
-
-void calculate(){
+// void calculate(){
     /*int i, j, n, k, y
     for (n = 0; n < nnonzero; n++) {
         for (k = 0; k < nF; k++) {
@@ -116,60 +35,106 @@ void calculate(){
 
     }*/
 
-}
+// }
 
-void matrix_loop(){
-    for (int i = 0; i < iter; i++) {
-        matrix_mult(L, RT, B, nU, nI, nF);
-        calculate();
-
-    }
-}
-
-
+// void matrix_loop() {
+//     for (int i = 0; i < iterations; i++) {
+//         multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
+//         calculate();
+//     }
+// }
 
 // Main
+int main(int argc, char **argv) {
+    
 
-int main() {
-    scanf("%d", &iter);
-    scanf("%lf", &alpha);
-    scanf("%d", &nF);
-    scanf("%d", &nU);
-    scanf("%d", &nI);
-    scanf("%d", &nnonzero);
+    if(argc != 2) {
+        printf("Invalid number of arguments provided: matFact [fileInput]");
+        return -1;
+    }
 
-    A = create_matrix_int(nU, nI);
-    B = create_matrix_double(nU, nI);
-    L = create_matrix_double(nU, nF);
-    R = create_matrix_double(nF, nI);
-    Lnew = create_matrix_double(nU, nF);
-    Rnew = create_matrix_double(nF, nI);
-    nnonzero_positions = create_matrix_int(nnonzero, 2);
+    // Read all the input and create the necessary structures
+    read_input(argv);
 
+    // Fill the matrixes randomly
     random_fill_LR();
-    RT = transpose_matrix(R, nF, nI);
+
+    // Get better performance because of cache 
+    // by working in the same chunks of memory -> cache hits 
+    RT = transpose_matrix(R, nFeatures, nItems);
+
+    multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
+
+    print_matrix_int(A, nUsers, nItems);
+    print_matrix_double(L, nUsers, nFeatures);
+    print_matrix_double(R, nFeatures, nItems);
+    print_matrix_double(RT, nItems, nFeatures);
+    print_matrix_double(B, nUsers, nItems);
+    print_matrix_int(nnonzero_positions, nnonzero, 2);
+
+    free_matrix_structures();
+    
+    return 0;
+}
+
+
+void read_input(char **argv) {
+    FILE *file_pointer;
+    file_pointer = fopen(argv[1], "r");
+    fscanf(file_pointer, "%d", &iterations);
+    fscanf(file_pointer, "%lf", &alpha);
+    fscanf(file_pointer, "%d", &nFeatures);
+    fscanf(file_pointer, "%d", &nUsers);
+    fscanf(file_pointer, "%d", &nItems);
+    fscanf(file_pointer, "%d", &nnonzero);
+    
+    create_matrix_structures();
 
     for (int i = 0; i < nnonzero; i++) {
         int n, m;
         double v;
 
-        scanf("%d", &n);
-        scanf("%d", &m);
-        scanf("%lf", &v);
+        fscanf(file_pointer, "%d", &n);
+        fscanf(file_pointer, "%d", &m);
+        fscanf(file_pointer, "%lf", &v);
 
         A[n][m] = v;
         nnonzero_positions[i][0] = n;
         nnonzero_positions[i][1] = m;
     }
+    
+    fclose(file_pointer);
+}
 
-    matrix_mult(L, RT, B, nU, nI, nF);
+void create_matrix_structures() {
+    A = create_matrix_int(nUsers, nItems);
+    B = create_matrix_double(nUsers, nItems);
+    L = create_matrix_double(nUsers, nFeatures);
+    R = create_matrix_double(nFeatures, nItems);
+    Lnew = create_matrix_double(nUsers, nFeatures);
+    Rnew = create_matrix_double(nFeatures, nItems);
+    nnonzero_positions = create_matrix_int(nnonzero, 2);
+}
 
-    print_matrix_int(A, nU, nI);
-    print_matrix_double(L, nU, nF);
-    print_matrix_double(R, nF, nI);
-    print_matrix_double(RT, nI, nF);
-    print_matrix_double(B, nU, nI);
-    print_matrix_int(nnonzero_positions, nnonzero, 2);
+void free_matrix_structures() {
+    free_matrix_int(A, nUsers);
+    free_matrix_double(B, nUsers);
+    free_matrix_double(L, nUsers);
+    free_matrix_double(R, nFeatures);
+    free_matrix_double(Lnew, nUsers);
+    free_matrix_double(Rnew, nFeatures);
+    free_matrix_int(nnonzero_positions, nnonzero);
+    free_matrix_double(RT, nItems);
+}
 
-    return 0;
+void random_fill_LR() {
+    srandom(0);
+
+    for (int i = 0; i < nUsers; i++)
+        for (int j = 0; j < nFeatures; j++)
+            L[i][j] = RAND01 / (double) nFeatures;
+
+    for (int i = 0; i < nFeatures; i++)
+        for (int j = 0; j < nItems; j++)
+            R[i][j] = RAND01 / (double) nFeatures;
 }
