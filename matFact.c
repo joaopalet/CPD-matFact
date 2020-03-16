@@ -13,36 +13,55 @@ void create_matrix_structures();
 void free_matrix_structures();
 
 // Global Variables
-int iterations, nFeatures, nUsers, nItems, nnonzero;
+int iterations, nFeatures, nUsers, nItems, nNonZero;
 int **A;
-int **nnonzero_positions;
-double **L, **R, **RT, **B, **Lnew, **Rnew;
+int **nNonZeroPositions;
+double **L, **R, **RT, **B, **Lnew, **RTnew, **mAux;
 double alpha;
 
 
-// void calculate(){
-    /*int i, j, n, k, y
-    for (n = 0; n < nnonzero; n++) {
-        for (k = 0; k < nF; k++) {
-            i = nnonzero_positions[n][0];
-            j = nnonzero_positions[n][1];
+void update(){
+    int i, j, n, k;
 
-            for (y = 0; n < nnonzero; n++) {
-                int i2 = nnonzero_positions[y][0]
-                2 * A[i][j] - B[i][j]*(-1* RT[j][k]);
+    copy_matrix(L, Lnew, nUsers, nFeatures);
+    copy_matrix(RT, RTnew, nItems, nFeatures);
 
+    for (n = 0; n < nNonZero; n++) {
+        i = nNonZeroPositions[n][0];
+        j = nNonZeroPositions[n][1];
+
+        for (k = 0; k < nFeatures; k++) {
+            double lSum = 0, rSum = 0;
+
+            for (int jSum = 0; jSum < nItems; jSum++)
+                lSum += 2 * ( A[i][j] - B[i][j] ) * (-RT[j][k] );
+                
+            Lnew[i][k] = L[i][k] - (alpha * lSum);
+
+            for (int iSum = 0; iSum < nUsers; iSum++)
+               rSum += 2 * ( A[i][j] - B[i][j] ) * (-L[i][k] );
+
+            RTnew[j][k] = RT[j][k] - (alpha * rSum);
         }
 
-    }*/
+        mAux = Lnew;
+        Lnew = L;
+        L = mAux;
 
-// }
+        mAux = RTnew;
+        RTnew = RT;
+        RT = mAux;
+    }
+}
 
-// void matrix_loop() {
-//     for (int i = 0; i < iterations; i++) {
-//         multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
-//         calculate();
-//     }
-// }
+void loop() {
+    for (int i = 0; i < iterations; i++) {
+        multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
+        update();
+    }
+
+    multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
+}
 
 // Main
 int main(int argc, char **argv) {
@@ -70,7 +89,13 @@ int main(int argc, char **argv) {
     print_matrix_double(R, nFeatures, nItems);
     print_matrix_double(RT, nItems, nFeatures);
     print_matrix_double(B, nUsers, nItems);
-    print_matrix_int(nnonzero_positions, nnonzero, 2);
+    print_matrix_int(nNonZeroPositions, nNonZero, 2);
+
+    loop();
+
+    print_matrix_double(L, nUsers, nFeatures);
+    print_matrix_double(RT, nItems, nFeatures);
+    print_matrix_double(B, nUsers, nItems);
 
     free_matrix_structures();
     
@@ -86,11 +111,11 @@ void read_input(char **argv) {
     fscanf(file_pointer, "%d", &nFeatures);
     fscanf(file_pointer, "%d", &nUsers);
     fscanf(file_pointer, "%d", &nItems);
-    fscanf(file_pointer, "%d", &nnonzero);
+    fscanf(file_pointer, "%d", &nNonZero);
     
     create_matrix_structures();
 
-    for (int i = 0; i < nnonzero; i++) {
+    for (int i = 0; i < nNonZero; i++) {
         int n, m;
         double v;
 
@@ -99,8 +124,8 @@ void read_input(char **argv) {
         fscanf(file_pointer, "%lf", &v);
 
         A[n][m] = v;
-        nnonzero_positions[i][0] = n;
-        nnonzero_positions[i][1] = m;
+        nNonZeroPositions[i][0] = n;
+        nNonZeroPositions[i][1] = m;
     }
     
     fclose(file_pointer);
@@ -112,8 +137,8 @@ void create_matrix_structures() {
     L = create_matrix_double(nUsers, nFeatures);
     R = create_matrix_double(nFeatures, nItems);
     Lnew = create_matrix_double(nUsers, nFeatures);
-    Rnew = create_matrix_double(nFeatures, nItems);
-    nnonzero_positions = create_matrix_int(nnonzero, 2);
+    RTnew = create_matrix_double(nItems, nFeatures);
+    nNonZeroPositions = create_matrix_int(nNonZero, 2);
 }
 
 void free_matrix_structures() {
@@ -122,8 +147,8 @@ void free_matrix_structures() {
     free_matrix_double(L, nUsers);
     free_matrix_double(R, nFeatures);
     free_matrix_double(Lnew, nUsers);
-    free_matrix_double(Rnew, nFeatures);
-    free_matrix_int(nnonzero_positions, nnonzero);
+    free_matrix_double(RTnew, nFeatures);
+    free_matrix_int(nNonZeroPositions, nNonZero);
     free_matrix_double(RT, nItems);
 }
 

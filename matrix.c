@@ -6,6 +6,12 @@
 // MATRICES OPERATIONS
 // ---------------------
 
+void copy_matrix(double **m1, double **m2, int n, int m) {
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            m2[i][j] = m1[i][j];
+}
+
 void multiply_matrix(double **X, double **Y, double **Z, int n, int m, int p) {
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
