@@ -11,6 +11,8 @@ void random_fill_LR();
 void read_input(char **argv);
 void create_matrix_structures();
 void free_matrix_structures();
+void update();
+void loop();
 
 // Global Variables
 int iterations, nFeatures, nUsers, nItems, nNonZero;
@@ -20,48 +22,6 @@ double **L, **R, **RT, **B, **Lnew, **RTnew, **mAux;
 double alpha;
 
 
-void update(){
-    int i, j, n, k;
-
-    copy_matrix(L, Lnew, nUsers, nFeatures);
-    copy_matrix(RT, RTnew, nItems, nFeatures);
-
-    for (n = 0; n < nNonZero; n++) {
-        i = nNonZeroPositions[n][0];
-        j = nNonZeroPositions[n][1];
-
-        for (k = 0; k < nFeatures; k++) {
-            double lSum = 0, rSum = 0;
-
-            for (int jSum = 0; jSum < nItems; jSum++)
-                lSum += 2 * ( A[i][j] - B[i][j] ) * (-RT[j][k] );
-                
-            Lnew[i][k] = L[i][k] - (alpha * lSum);
-
-            for (int iSum = 0; iSum < nUsers; iSum++)
-               rSum += 2 * ( A[i][j] - B[i][j] ) * (-L[i][k] );
-
-            RTnew[j][k] = RT[j][k] - (alpha * rSum);
-        }
-
-        mAux = Lnew;
-        Lnew = L;
-        L = mAux;
-
-        mAux = RTnew;
-        RTnew = RT;
-        RT = mAux;
-    }
-}
-
-void loop() {
-    for (int i = 0; i < iterations; i++) {
-        multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
-        update();
-    }
-
-    multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
-}
 
 // Main
 int main(int argc, char **argv) {
@@ -162,4 +122,47 @@ void random_fill_LR() {
     for (int i = 0; i < nFeatures; i++)
         for (int j = 0; j < nItems; j++)
             R[i][j] = RAND01 / (double) nFeatures;
+}
+
+void update(){
+    int i, j, n, k;
+
+    copy_matrix(L, Lnew, nUsers, nFeatures);
+    copy_matrix(RT, RTnew, nItems, nFeatures);
+
+    for (n = 0; n < nNonZero; n++) {
+        i = nNonZeroPositions[n][0];
+        j = nNonZeroPositions[n][1];
+
+        for (k = 0; k < nFeatures; k++) {
+            double lSum = 0, rSum = 0;
+
+            for (int jSum = 0; jSum < nItems; jSum++)
+                lSum += 2 * ( A[i][j] - B[i][j] ) * (-RT[j][k] );
+                
+            Lnew[i][k] = L[i][k] - (alpha * lSum);
+
+            for (int iSum = 0; iSum < nUsers; iSum++)
+               rSum += 2 * ( A[i][j] - B[i][j] ) * (-L[i][k] );
+
+            RTnew[j][k] = RT[j][k] - (alpha * rSum);
+        }
+
+        mAux = Lnew;
+        Lnew = L;
+        L = mAux;
+
+        mAux = RTnew;
+        RTnew = RT;
+        RT = mAux;
+    }
+}
+
+void loop() {
+    for (int i = 0; i < iterations; i++) {
+        multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
+        update();
+    }
+
+    multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
 }
