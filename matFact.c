@@ -1,4 +1,5 @@
 // Serial Implementation - Group 5
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "matrix.h"
@@ -41,8 +42,6 @@ int main(int argc, char **argv) {
     // by working in the same chunks of memory -> cache hits 
     RT = transpose_matrix(R, nFeatures, nItems);
 
-    multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
-
     print_matrix_int(A, nNonZero, 3);
     print_matrix_double(L, nUsers, nFeatures);
     print_matrix_double(R, nFeatures, nItems);
@@ -50,7 +49,6 @@ int main(int argc, char **argv) {
     print_matrix_double(B, nUsers, nItems);
 
     loop();
-    multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
 
     print_matrix_double(L, nUsers, nFeatures);
     print_matrix_double(RT, nItems, nFeatures);
@@ -143,8 +141,8 @@ void update(){
 
 void loop() {
     for (int i = 0; i < iterations; i++) {
-        update();
-        //multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
         multiply_non_zeros(L, RT, B, A, nNonZero, nFeatures);
+        update();
     }
+    multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
 }
