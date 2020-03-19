@@ -17,7 +17,7 @@ void loop();
 // Global Variables
 int iterations, nFeatures, nUsers, nItems, nNonZero;
 int **A;
-int **nNonZeroPositions;
+int **nonZeroPositions;
 double **L, **R, **RT, **B, **Lnew, **RTnew, **mAux;
 double alpha;
 
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
     print_matrix_double(R, nFeatures, nItems);
     print_matrix_double(RT, nItems, nFeatures);
     print_matrix_double(B, nUsers, nItems);
-    print_matrix_int(nNonZeroPositions, nNonZero, 2);
+    print_matrix_int(nonZeroPositions, nNonZero, 2);
 
     loop();
 
@@ -84,8 +84,8 @@ void read_input(char **argv) {
         fscanf(file_pointer, "%lf", &v);
 
         A[n][m] = v;
-        nNonZeroPositions[i][0] = n;
-        nNonZeroPositions[i][1] = m;
+        nonZeroPositions[i][0] = n;
+        nonZeroPositions[i][1] = m;
     }
     
     fclose(file_pointer);
@@ -98,7 +98,7 @@ void create_matrix_structures() {
     R = create_matrix_double(nFeatures, nItems);
     Lnew = create_matrix_double(nUsers, nFeatures);
     RTnew = create_matrix_double(nItems, nFeatures);
-    nNonZeroPositions = create_matrix_int(nNonZero, 2);
+    nonZeroPositions = create_matrix_int(nNonZero, 2);
 }
 
 void free_matrix_structures() {
@@ -108,7 +108,7 @@ void free_matrix_structures() {
     free_matrix_double(R, nFeatures);
     free_matrix_double(Lnew, nUsers);
     free_matrix_double(RTnew, nFeatures);
-    free_matrix_int(nNonZeroPositions, nNonZero);
+    free_matrix_int(nonZeroPositions, nNonZero);
     free_matrix_double(RT, nItems);
 }
 
@@ -131,38 +131,27 @@ void update(){
     copy_matrix(RT, RTnew, nItems, nFeatures);
 
     for (n = 0; n < nNonZero; n++) {
-        i = nNonZeroPositions[n][0];
-        j = nNonZeroPositions[n][1];
+        i = nonZeroPositions[n][0];
+        j = nonZeroPositions[n][1];
 
         for (k = 0; k < nFeatures; k++) {
-            double lSum = 0, rSum = 0;
-
-            for (int jSum = 0; jSum < nItems; jSum++)
-                lSum += 2 * ( A[i][j] - B[i][j] ) * (-RT[j][k] );
-                
-            Lnew[i][k] = L[i][k] - (alpha * lSum);
-
-            for (int iSum = 0; iSum < nUsers; iSum++)
-               rSum += 2 * ( A[i][j] - B[i][j] ) * (-L[i][k] );
-
-            RTnew[j][k] = RT[j][k] - (alpha * rSum);
+            Lnew[i][k] -= alpha * ( 2 * ( A[i][j] - B[i][j] ) * ( -RT[j][k] ) );
+            RTnew[j][k] -= alpha * ( 2 * ( A[i][j] - B[i][j] ) * ( -L[i][k] ) );
         }
-
-        mAux = Lnew;
-        Lnew = L;
-        L = mAux;
-
-        mAux = RTnew;
-        RTnew = RT;
-        RT = mAux;
     }
+
+    mAux = Lnew;
+    Lnew = L;
+    L = mAux;
+
+    mAux = RTnew;
+    RTnew = RT;
+    RT = mAux;
 }
 
 void loop() {
     for (int i = 0; i < iterations; i++) {
-        multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
         update();
+        multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
     }
-
-    multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
 }
