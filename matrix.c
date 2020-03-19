@@ -15,9 +15,10 @@ void copy_matrix(double **m1, double **m2, int n, int m) {
 void multiply_matrix(double **X, double **Y, double **Z, int n, int m, int p) {
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
-            Z[i][j] = 0;
+            double sum = 0;
             for (int k = 0; k < p; k++)
-                Z[i][j] += X[i][k] * Y[j][k];
+                sum += X[i][k] * Y[j][k];
+            Z[i][j] = sum;
         }
     }
 }
