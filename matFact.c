@@ -50,6 +50,7 @@ int main(int argc, char **argv) {
     print_matrix_double(B, nUsers, nItems);
 
     loop();
+    multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
 
     print_matrix_double(L, nUsers, nFeatures);
     print_matrix_double(RT, nItems, nFeatures);
@@ -143,6 +144,7 @@ void update(){
 void loop() {
     for (int i = 0; i < iterations; i++) {
         update();
-        multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
+        //multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
+        multiply_non_zeros(L, RT, B, A, nNonZero, nFeatures);
     }
 }

@@ -6,6 +6,19 @@
 // MATRICES OPERATIONS
 // ---------------------
 
+void multiply_non_zeros(double **L, double **RT, double **B, int **A, int nNonZero, int nFeatures) {
+    for (int n = 0; n < nNonZero; n++) {
+        int i = A[n][0];
+        int j = A[n][1];
+
+        double sum = 0;
+        for (int  k= 0; k < nFeatures; k++) {
+            sum += L[i][k] * RT[j][k];
+        }
+        B[i][j] = sum;
+    }
+}
+
 void copy_matrix(double **m1, double **m2, int n, int m) {
     for (int i = 0; i < n; i++)
         for (int j = 0; j < m; j++)
