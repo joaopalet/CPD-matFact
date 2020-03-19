@@ -37,6 +37,14 @@ double **transpose_matrix(double **M, int n, int m) {
 // MATRICES CREATION
 // -------------------
 
+int **create_compact_matrix(int n) {
+    int **M = (int **)malloc(n * sizeof(int *)); 
+
+    for (int i= 0; i < n; i++) 
+        M[i] = (int *) calloc(3, sizeof(int));
+    return M;
+}
+
 int **create_matrix_int(int r, int c) {
     int **M = (int **)malloc(r * sizeof(int *)); 
 

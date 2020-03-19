@@ -17,7 +17,6 @@ void loop();
 // Global Variables
 int iterations, nFeatures, nUsers, nItems, nNonZero;
 int **A;
-int **nonZeroPositions;
 double **L, **R, **RT, **B, **Lnew, **RTnew, **mAux;
 double alpha;
 
@@ -44,12 +43,11 @@ int main(int argc, char **argv) {
 
     multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
 
-    print_matrix_int(A, nUsers, nItems);
+    print_matrix_int(A, nNonZero, 3);
     print_matrix_double(L, nUsers, nFeatures);
     print_matrix_double(R, nFeatures, nItems);
     print_matrix_double(RT, nItems, nFeatures);
     print_matrix_double(B, nUsers, nItems);
-    print_matrix_int(nonZeroPositions, nNonZero, 2);
 
     loop();
 
@@ -83,32 +81,30 @@ void read_input(char **argv) {
         fscanf(file_pointer, "%d", &m);
         fscanf(file_pointer, "%lf", &v);
 
-        A[n][m] = v;
-        nonZeroPositions[i][0] = n;
-        nonZeroPositions[i][1] = m;
+        A[i][0] = n;
+        A[i][1] = m;
+        A[i][2] = v;
     }
     
     fclose(file_pointer);
 }
 
 void create_matrix_structures() {
-    A = create_matrix_int(nUsers, nItems);
+    A = create_compact_matrix(nNonZero);
     B = create_matrix_double(nUsers, nItems);
     L = create_matrix_double(nUsers, nFeatures);
     R = create_matrix_double(nFeatures, nItems);
     Lnew = create_matrix_double(nUsers, nFeatures);
     RTnew = create_matrix_double(nItems, nFeatures);
-    nonZeroPositions = create_matrix_int(nNonZero, 2);
 }
 
 void free_matrix_structures() {
-    free_matrix_int(A, nUsers);
+    free_matrix_int(A, nNonZero);
     free_matrix_double(B, nUsers);
     free_matrix_double(L, nUsers);
     free_matrix_double(R, nFeatures);
     free_matrix_double(Lnew, nUsers);
     free_matrix_double(RTnew, nFeatures);
-    free_matrix_int(nonZeroPositions, nNonZero);
     free_matrix_double(RT, nItems);
 }
 
@@ -131,22 +127,17 @@ void update(){
     copy_matrix(RT, RTnew, nItems, nFeatures);
 
     for (n = 0; n < nNonZero; n++) {
-        i = nonZeroPositions[n][0];
-        j = nonZeroPositions[n][1];
+        i = A[n][0];
+        j = A[n][1];
 
         for (k = 0; k < nFeatures; k++) {
-            Lnew[i][k] -= alpha * ( 2 * ( A[i][j] - B[i][j] ) * ( -RT[j][k] ) );
-            RTnew[j][k] -= alpha * ( 2 * ( A[i][j] - B[i][j] ) * ( -L[i][k] ) );
+            Lnew[i][k] -= alpha * ( 2 * ( A[n][2] - B[i][j] ) * ( -RT[j][k] ) );
+            RTnew[j][k] -= alpha * ( 2 * ( A[n][2] - B[i][j] ) * ( -L[i][k] ) );
         }
     }
 
-    mAux = Lnew;
-    Lnew = L;
-    L = mAux;
-
-    mAux = RTnew;
-    RTnew = RT;
-    RT = mAux;
+    mAux = Lnew;    Lnew = L;       L = mAux;
+    mAux = RTnew;   RTnew = RT;     RT = mAux;
 }
 
 void loop() {
