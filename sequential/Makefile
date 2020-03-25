@@ -7,4 +7,4 @@ clean:
 	rm -f *.o matFact
 
 run:
-	./matFact ../instances/inst0.in
+	./matFact ../instances/inst30-40-10-2-10.in

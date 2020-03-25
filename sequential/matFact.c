@@ -14,6 +14,7 @@ void create_matrix_structures();
 void free_matrix_structures();
 void update();
 void loop();
+void print_recomendations();
 
 // Global Variables
 int iterations, nFeatures, nUsers, nItems, nNonZero;
@@ -42,17 +43,9 @@ int main(int argc, char **argv) {
     // by working in the same chunks of memory -> cache hits 
     RT = transpose_matrix(R, nFeatures, nItems);
 
-    print_matrix_int(A, nNonZero, 3);
-    print_matrix_double(L, nUsers, nFeatures);
-    print_matrix_double(R, nFeatures, nItems);
-    print_matrix_double(RT, nItems, nFeatures);
-    print_matrix_double(B, nUsers, nItems);
-
     loop();
 
-    print_matrix_double(L, nUsers, nFeatures);
-    print_matrix_double(RT, nItems, nFeatures);
-    print_matrix_double(B, nUsers, nItems);
+    print_recomendations();
 
     free_matrix_structures();
     
@@ -145,4 +138,26 @@ void loop() {
         update();
     }
     multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
+}
+
+void print_recomendations() {
+    int index = 0;
+
+    for (int user = 0; user < nUsers; user++) {
+        double max = -1;
+        int recomendation;
+
+        for (int item = 0; item < nItems; item++) {
+            if (index < nNonZero && A[index][0] == user && A[index][1] == item) {
+                index++;
+                continue;
+            }
+
+            if (B[user][item] > max) {
+                max = B[user][item];
+                recomendation = item;
+            }
+        }
+        printf("%d\n", recomendation);
+    }
 }
