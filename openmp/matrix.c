@@ -7,6 +7,7 @@
 // ---------------------
 
 void multiply_non_zeros(double **L, double **RT, double **B, int **A, int nNonZero, int nFeatures) {
+    #pragma omp for
     for (int n = 0; n < nNonZero; n++) {
         int i = A[n][0];
         int j = A[n][1];
@@ -20,12 +21,15 @@ void multiply_non_zeros(double **L, double **RT, double **B, int **A, int nNonZe
 }
 
 void copy_matrix(double **m1, double **m2, int n, int m) {
-    for (int i = 0; i < n; i++)
+    #pragma omp for //nowait
+    for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++)
             m2[i][j] = m1[i][j];
+    }
 }
 
 void multiply_matrix(double **X, double **Y, double **Z, int n, int m, int p) {
+    #pragma omp parallel for
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
             double sum = 0;

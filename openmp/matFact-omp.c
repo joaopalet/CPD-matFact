@@ -112,30 +112,35 @@ void random_fill_LR() {
             R[i][j] = RAND01 / (double) nFeatures;
 }
 
-void update(){
+void update() {
     int i, j, n, k;
 
     copy_matrix(L, Lnew, nUsers, nFeatures);
     copy_matrix(RT, RTnew, nItems, nFeatures);
 
+    #pragma omp for private(i, j, k) 
     for (n = 0; n < nNonZero; n++) {
         i = A[n][0];
         j = A[n][1];
 
         for (k = 0; k < nFeatures; k++) {
+            #pragma omp atomic
             Lnew[i][k] -= alpha * ( 2 * ( A[n][2] - B[i][j] ) * ( -RT[j][k] ) );
+            #pragma omp atomic
             RTnew[j][k] -= alpha * ( 2 * ( A[n][2] - B[i][j] ) * ( -L[i][k] ) );
         }
     }
 
-    mAux = Lnew;    Lnew = L;       L = mAux;
-    mAux = RTnew;   RTnew = RT;     RT = mAux;
+    #pragma omp single
+    { mAux = Lnew;    Lnew = L;       L = mAux;
+    mAux = RTnew;   RTnew = RT;     RT = mAux; }
 }
 
 void loop() {
     for (int i = 0; i < iterations; i++) {
-        multiply_non_zeros(L, RT, B, A, nNonZero, nFeatures);
-        update();
+        #pragma omp parallel
+        { multiply_non_zeros(L, RT, B, A, nNonZero, nFeatures);
+        update(); }
     }
     multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
 }
