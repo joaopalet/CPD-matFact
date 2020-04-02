@@ -20,16 +20,8 @@ void multiply_non_zeros(double **L, double **RT, double **B, int **A, int nNonZe
     }
 }
 
-void copy_matrix(double **m1, double **m2, int n, int m) {
-    #pragma omp for //nowait
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < m; j++)
-            m2[i][j] = m1[i][j];
-    }
-}
-
 void multiply_matrix(double **X, double **Y, double **Z, int n, int m, int p) {
-    #pragma omp parallel for
+    #pragma omp for
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
             double sum = 0;
@@ -59,14 +51,6 @@ int **create_compact_matrix(int n) {
 
     for (int i= 0; i < n; i++) 
         M[i] = (int *) calloc(3, sizeof(int));
-    return M;
-}
-
-int **create_matrix_int(int r, int c) {
-    int **M = (int **)malloc(r * sizeof(int *)); 
-
-    for (int i= 0; i < r; i++) 
-        M[i] = (int *) calloc(c, sizeof(int));
     return M;
 }
 

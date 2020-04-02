@@ -15,7 +15,6 @@ double **transpose_matrix(double **M, int n, int m);
 // -------------------
 
 int **create_compact_matrix(int n);
-int **create_matrix_int(int r, int c);
 double **create_matrix_double(int r, int c);
 
 void free_matrix_int(int **matrix, int rows);
