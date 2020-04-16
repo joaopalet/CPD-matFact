@@ -7,4 +7,4 @@ clean:
 	rm -f *.o matFact-omp
 
 run:
-	./matFact-omp ../instances/instML1M.in
+	./matFact-omp ../instances/inst500-500-20-2-100.in

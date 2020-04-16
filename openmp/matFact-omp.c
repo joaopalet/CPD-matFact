@@ -101,18 +101,13 @@ void free_matrix_structures() {
 void random_fill_LR() {
     srandom(0);
 
-    #pragma omp parallel if (max > 500) 
-    {
-        #pragma omp for nowait
-        for (int i = 0; i < nUsers; i++)
-            for (int j = 0; j < nFeatures; j++)
-                L[i][j] = RAND01 / (double) nFeatures;
+    for (int i = 0; i < nUsers; i++)
+        for (int j = 0; j < nFeatures; j++)
+            L[i][j] = RAND01 / (double) nFeatures;
 
-        #pragma omp for
-        for (int i = 0; i < nFeatures; i++)
-            for (int j = 0; j < nItems; j++)
-                R[i][j] = RAND01 / (double) nFeatures;
-    }
+    for (int i = 0; i < nFeatures; i++)
+        for (int j = 0; j < nItems; j++)
+            R[i][j] = RAND01 / (double) nFeatures;
 }
 
 void update() {
