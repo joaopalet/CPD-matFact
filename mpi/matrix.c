@@ -7,7 +7,6 @@
 // ---------------------
 
 void multiply_non_zeros(double **L, double **RT, double **B, int **A, int nNonZero, int nFeatures) {
-    #pragma omp for
     for (int n = 0; n < nNonZero; n++) {
         int i = A[n][0];
         int j = A[n][1];
@@ -21,7 +20,6 @@ void multiply_non_zeros(double **L, double **RT, double **B, int **A, int nNonZe
 }
 
 void multiply_matrix(double **X, double **Y, double **Z, int n, int m, int p) {
-    #pragma omp for
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
             double sum = 0;
@@ -47,33 +45,38 @@ double **transpose_matrix(double **M, int n, int m) {
 // -------------------
 
 int **create_compact_matrix(int n) {
-    int **M = (int **)malloc(n * sizeof(int *)); 
+    int len = sizeof(int *) * n + sizeof(int) * 3 * n; 
+    int **M = (int **)malloc(len); 
+  
+    // ptr is now pointing to the first element in of 2D array 
+    int *ptr = (int *)(M + n); 
+  
+    // for loop to point rows pointer to appropriate location in 2D array 
+    for(int i = 0; i < n; i++) 
+        M[i] = (ptr + 3 * i);
 
-    for (int i= 0; i < n; i++) 
-        M[i] = (int *) calloc(3, sizeof(int));
     return M;
 }
 
 double **create_matrix_double(int r, int c) {
-    double **M = (double **)malloc(r * sizeof(double *)); 
-
-    for (int i= 0; i < r; i++) 
-        M[i] = (double *) calloc(c, sizeof(double));
+    int len = sizeof(double *) * r + sizeof(double) * c * r; 
+    double **M = (double **)malloc(len); 
+  
+    // ptr is now pointing to the first element in of 2D array 
+    double *ptr = (double *)(M + r); 
+  
+    // for loop to point rows pointer to appropriate location in 2D array 
+    for(int i = 0; i < r; i++) 
+        M[i] = (ptr + c * i);
 
     return M;
 }
 
-void free_matrix_int(int **matrix, int rows) {
-    for (int i = 0; i < rows; i++) {
-        free(matrix[i]);
-    }
+void free_matrix_int(int **matrix) {
     free(matrix);
 }
 
-void free_matrix_double(double **matrix, int rows) {
-    for (int i = 0; i < rows; i++) {
-        free(matrix[i]);
-    }
+void free_matrix_double(double **matrix) {
     free(matrix);
 }
 

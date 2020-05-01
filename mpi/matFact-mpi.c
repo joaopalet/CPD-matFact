@@ -9,6 +9,13 @@
 #define RAND01 ((double) random() / (double) RAND_MAX)
 #define max(x,y) ( (x) > (y) ? (x) : (y) )
 
+#define BLOCK_LOW(id,p,n) ((id)*(n)/(p))
+#define BLOCK_HIGH(id,p,n) (BLOCK_LOW((id)+1,p,n) - 1)
+#define BLOCK_SIZE(id,p,n) \
+ (BLOCK_HIGH(id,p,n) - BLOCK_LOW(id,p,n) + 1)
+#define BLOCK_OWNER(index,p,n) \
+(((p)*((index)+1)-1)/(n))
+
 // Function declarations
 void random_fill_LR();
 void read_input(char **argv);
@@ -32,15 +39,26 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    // Read all the input and create the necessary structures
-    read_input(argv);
+    MPI_Init(&argc, &argv);
 
-    // Fill the matrixes randomly
-    random_fill_LR();
+    int id, nproc;
 
-    // Get better performance because of cache 
-    // by working in the same chunks of memory -> cache hits 
-    RT = transpose_matrix(R, nFeatures, nItems);
+	MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+	MPI_Comm_rank(MPI_COMM_WORLD, &id);
+
+    if(!id) {
+        // Read all the input and create the necessary structures
+        read_input(argv);
+
+        // Fill the matrixes randomly
+        random_fill_LR();
+
+        // Get better performance because of cache 
+        // by working in the same chunks of memory -> cache hits 
+        RT = transpose_matrix(R, nFeatures, nItems);
+    }
+
+    // TODO: distribuir matrizes pelos processos (começar por broadcast, todos têm as matrizes inteiras)
 
     loop();
 
@@ -63,8 +81,6 @@ void read_input(char **argv) {
     fscanf(file_pointer, "%d", &nItems);
     fscanf(file_pointer, "%d", &nNonZero);
 
-    max = max(nUsers, nItems);
-    
     create_matrix_structures();
 
     for (int i = 0; i < nNonZero; i++) {
@@ -93,11 +109,11 @@ void create_matrix_structures() {
 }
 
 void free_matrix_structures() {
-    free_matrix_int(A, nNonZero);
-    free_matrix_double(B, nUsers);
-    free_matrix_double(L, nUsers);
-    free_matrix_double(R, nFeatures);
-    free_matrix_double(RT, nItems);
+    free_matrix_int(A);
+    free_matrix_double(B);
+    free_matrix_double(L);
+    free_matrix_double(R);
+    free_matrix_double(RT);
 }
 
 void random_fill_LR() {
@@ -115,6 +131,8 @@ void random_fill_LR() {
 void update() {
     int i, j, n, k;
 
+    // TODO: processo 0 faz broadcast de RT
+
     for (n = 0; n < nNonZero; n++) {
         i = A[n][0];
         j = A[n][1];
@@ -124,6 +142,8 @@ void update() {
             RTsum[j][k] += alpha * ( 2 * ( A[n][2] - B[i][j] ) * ( -L[i][k] ) );
         }
     }
+
+    // TODO: fazer um reduce do Lsum e RTsum para o processo 0
 
     for (int i = 0; i < max; i++)
         for (int j = 0; j < nFeatures; j++) {
@@ -135,15 +155,19 @@ void update() {
                 RT[i][j] -= RTsum[i][j];
                 RTsum[i][j] = 0;
             }
-    }
+        }
 }
 
 void loop() {
 
     for (int i = 0; i < iterations; i++) {
         multiply_non_zeros(L, RT, B, A, nNonZero, nFeatures);
+
         update();
     }
+
+    // TODO: voltar a agrupar tudo no processo 0
+
     multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
 
 }

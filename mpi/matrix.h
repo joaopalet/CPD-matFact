@@ -17,8 +17,8 @@ double **transpose_matrix(double **M, int n, int m);
 int **create_compact_matrix(int n);
 double **create_matrix_double(int r, int c);
 
-void free_matrix_int(int **matrix, int rows);
-void free_matrix_double(double **matrix, int rows);
+void free_matrix_int(int **matrix);
+void free_matrix_double(double **matrix);
 
 // -------------------
 // MATRICES PRINTING
