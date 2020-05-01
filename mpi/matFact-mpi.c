@@ -18,7 +18,7 @@
 
 // Function declarations
 void random_fill_LR();
-void read_input(char **argv);
+void read_input(FILE *file_pointer);
 void create_matrix_structures();
 void free_matrix_structures();
 void update();
@@ -26,7 +26,7 @@ void loop();
 void print_recomendations();
 
 // Global Variables
-int iterations, nFeatures, nUsers, nItems, nNonZero, numThreads, max;
+int iterations, nFeatures, nUsers, nItems, nNonZero, numThreads, max, block_size, id, nproc;
 int **A;
 double **L, **R, **RT, **B, **Lsum, **RTsum;
 double alpha;
@@ -40,38 +40,11 @@ int main(int argc, char **argv) {
     }
 
     MPI_Init(&argc, &argv);
-
-    int id, nproc;
+    MPI_Status status;
 
 	MPI_Comm_size(MPI_COMM_WORLD, &nproc);
 	MPI_Comm_rank(MPI_COMM_WORLD, &id);
 
-    if(!id) {
-        // Read all the input and create the necessary structures
-        read_input(argv);
-
-        // Fill the matrixes randomly
-        random_fill_LR();
-
-        // Get better performance because of cache 
-        // by working in the same chunks of memory -> cache hits 
-        RT = transpose_matrix(R, nFeatures, nItems);
-    }
-
-    // TODO: distribuir matrizes pelos processos (começar por broadcast, todos têm as matrizes inteiras)
-
-    loop();
-
-    print_recomendations();
-
-    free_matrix_structures();
-    
-    return 0;
-}
-
-
-
-void read_input(char **argv) {
     FILE *file_pointer;
     file_pointer = fopen(argv[1], "r");
     fscanf(file_pointer, "%d", &iterations);
@@ -80,31 +53,101 @@ void read_input(char **argv) {
     fscanf(file_pointer, "%d", &nUsers);
     fscanf(file_pointer, "%d", &nItems);
     fscanf(file_pointer, "%d", &nNonZero);
+    if (id) fclose(file_pointer);
+
+    block_size = BLOCK_SIZE(id, nproc, nUsers);
 
     create_matrix_structures();
+
+    if(!id) {
+        // Read all the input and create the necessary structures
+        read_input(file_pointer);
+
+        // Fill the matrixes randomly
+        random_fill_LR();
+
+        // Get better performance because of cache 
+        // by working in the same chunks of memory -> cache hits 
+        RT = transpose_matrix(R, nFeatures, nItems);
+    } else {
+        //MPI_Recv(L, block_size, MPI_INT, 0, id, MPI_COMM_WORLD, &status);
+        //MPI_Recv(RT, nItems * nFeatures, MPI_DOUBLE, 0, id, MPI_COMM_WORLD, &status);
+        int elem_number;
+        MPI_Recv(&elem_number, 1, MPI_INT, 0, id, MPI_COMM_WORLD, &status);
+        MPI_Recv(A, elem_number * 3, MPI_INT, 0, id, MPI_COMM_WORLD, &status);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    loop();
+
+    print_recomendations();
+
+    free_matrix_structures();
+
+    MPI_Finalize();
+    
+    return 0;
+}
+
+
+
+void read_input(FILE *file_pointer) {
+
+    int **buffer = create_compact_matrix(block_size);
+
+    int proc_number = 0;
+    int elem_number = 0;
+    int row_number = 0;
+    int prev_n = 0;
 
     for (int i = 0; i < nNonZero; i++) {
         int n, m;
         double v;
 
+        int high = BLOCK_HIGH(proc_number, nproc, nUsers);
+
         fscanf(file_pointer, "%d", &n);
         fscanf(file_pointer, "%d", &m);
         fscanf(file_pointer, "%lf", &v);
 
-        A[i][0] = n;
-        A[i][1] = m;
-        A[i][2] = v;
+        
+        if (n <= high) {
+            if (proc_number == 0) {
+                A[i][0] = n;
+                A[i][1] = m;
+                A[i][2] = v;
+            } else {
+                buffer[elem_number][0] = n;
+                buffer[elem_number][1] = m;
+                buffer[elem_number][2] = v;
+                elem_number++;
+            }
+        } else {
+            if (proc_number) {
+                MPI_Send(&elem_number, 1, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
+                MPI_Send(buffer[0], elem_number * 3, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
+                elem_number = 0;
+            }
+
+            buffer[elem_number][0] = n;
+            buffer[elem_number][1] = m;
+            buffer[elem_number][2] = v;
+            elem_number++;
+
+            proc_number++;
+        }
     }
     
     fclose(file_pointer);
 }
 
 void create_matrix_structures() {
-    A = create_compact_matrix(nNonZero);
-    B = create_matrix_double(nUsers, nItems);
-    L = create_matrix_double(nUsers, nFeatures);
+    A = create_compact_matrix(block_size);
+    B = create_matrix_double(block_size, nItems);
+    L = create_matrix_double(block_size, nFeatures);
     R = create_matrix_double(nFeatures, nItems);
-    Lsum = create_matrix_double(nUsers, nFeatures);
+    Lsum = create_matrix_double(block_size, nFeatures);
     RTsum = create_matrix_double(nItems, nFeatures);
 }
 
