@@ -72,10 +72,10 @@ int main(int argc, char **argv) {
         RT = transpose_matrix(R, nFeatures, nItems);
 
         // Scatter L
-        // for (int i = 1; i < nproc; i++)
-        //     MPI_Send(&L[POS(BLOCK_LOW(i, nproc, nUsers), 0, nFeatures)], 
-        //              BLOCK_SIZE(i, nproc, nUsers) * nFeatures, 
-        //              MPI_DOUBLE, i, i, MPI_COMM_WORLD);
+        for (int i = 1; i < nproc; i++)
+            MPI_Send(&L[POS(BLOCK_LOW(i, nproc, nUsers), 0, nFeatures)], 
+                     BLOCK_SIZE(i, nproc, nUsers) * nFeatures, 
+                     MPI_DOUBLE, i, i, MPI_COMM_WORLD);
     
     } else {
         MPI_Recv(&nElements, 1, MPI_INT, 0, id, MPI_COMM_WORLD, &status);
@@ -84,27 +84,30 @@ int main(int argc, char **argv) {
         printf("I am process %d. Received message 2.\n", id);
 
         // Receive L
-        // MPI_Recv(L, BLOCK_SIZE(id, nproc, nUsers) * nFeatures, MPI_DOUBLE, 0, id, MPI_COMM_WORLD, &status);
+        MPI_Recv(L, BLOCK_SIZE(id, nproc, nUsers) * nFeatures, MPI_DOUBLE, 0, id, MPI_COMM_WORLD, &status);
     }
 
     // Broadcast RT
-    // MPI_Bcast(RT, nItems * nFeatures, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(RT, nItems * nFeatures, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    //MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
 
     printf("I am processor %d. This is my A:\n", id);
     print_matrix_int(A, nElements, 3);
-    printf("\n\n\n");
     
-    // print_matrix_double(L, BLOCK_SIZE(id, nproc, nUsers), nFeatures);
-    // printf("\n");
-    // print_matrix_double(RT, nItems, nFeatures);
+    printf("I am processor %d. This is my L:\n", id);
+    print_matrix_double(L, BLOCK_SIZE(id, nproc, nUsers), nFeatures);
+
+    printf("I am processor %d. This is my R:\n", id);
+    print_matrix_double(RT, nItems, nFeatures);
+
+    printf("\n\n\n");
 
     // loop();
 
     // print_recomendations();
 
-    free_matrix_structures();
+    //free_matrix_structures();
 
     MPI_Finalize();
     
@@ -185,7 +188,8 @@ void create_matrix_structures() {
         RT = create_matrix_double(nItems, nFeatures);
     } else {
         R = create_matrix_double(nFeatures, nItems);
-    }    
+    }
+
     Lsum = create_matrix_double(block_size, nFeatures);
     RTsum = create_matrix_double(nItems, nFeatures);
 }
