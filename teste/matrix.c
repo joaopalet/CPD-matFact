@@ -26,7 +26,7 @@ void multiply_matrix(double *X, double *Y, double *Z, int n, int m, int p) {
         for (int j = 0; j < m; j++) {
             double sum = 0;
             for (int k = 0; k < p; k++)
-                sum += X[POS(i,k,p)] * Y[POS(j,k,m)];
+                sum += X[POS(i,k,p)] * Y[POS(j,k,p)];
             Z[POS(i,j,m)] = sum;
         }
     }
@@ -35,8 +35,12 @@ void multiply_matrix(double *X, double *Y, double *Z, int n, int m, int p) {
 double *transpose_matrix(double *M, int n, int m) {
     double *MT = create_matrix_double(m, n);
 
+    printf("m=%d\n", m);
+    printf("n=%d\n", n);
+    
     for (int i = 0; i < n; i++)
         for (int j = 0; j < m; j++) {
+    
             MT[POS(j,i,n)] = M[POS(i,j,m)];
         }
 
