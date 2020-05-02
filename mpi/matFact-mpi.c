@@ -217,31 +217,29 @@ void random_fill_LR() {
 void update() {
     int i, j, n, k;
 
-    // TODO: processo 0 faz broadcast de RT
+    for (n = 0; n < nNonZero; n++) {
+        i = A[POS(n,0,3)];
+        j = A[POS(n,1,3)];
 
-    // for (n = 0; n < nNonZero; n++) {
-    //     i = A[n][0];
-    //     j = A[n][1];
+        for (k = 0; k < nFeatures; k++) {
+            Lsum[POS(i,k,nFeatures)] += alpha * ( 2 * ( A[POS(n,2,3)] - B[POS(i,j,nItems)] ) * ( -RT[POS(j,k,nFeatures)] ) );
+            RTsum[POS(j,k,nFeatures)] += alpha * ( 2 * ( A[POS(n,2,3)] - B[POS(i,j,nItems)] ) * ( -L[POS(i,k,nFeatures)] ) );
+        }
+    }
 
-    //     for (k = 0; k < nFeatures; k++) {
-    //         Lsum[i][k] += alpha * ( 2 * ( A[n][2] - B[i][j] ) * ( -RT[j][k] ) );
-    //         RTsum[j][k] += alpha * ( 2 * ( A[n][2] - B[i][j] ) * ( -L[i][k] ) );
-    //     }
-    // }
+    // TODO: fazer um reduce do Lsum e RTsum para o processo 0
 
-    // // TODO: fazer um reduce do Lsum e RTsum para o processo 0
-
-    // for (int i = 0; i < max; i++)
-    //     for (int j = 0; j < nFeatures; j++) {
-    //         if (i < nUsers) {
-    //             L[i][j] -= Lsum[i][j];
-    //             Lsum[i][j] = 0;
-    //         }
-    //         if (i < nItems) {
-    //             RT[i][j] -= RTsum[i][j];
-    //             RTsum[i][j] = 0;
-    //         }
-    //     }
+    for (int i = 0; i < max; i++)
+        for (int j = 0; j < nFeatures; j++) {
+            if (i < nUsers) {
+                L[POS(i,j,nFeatures)] -= Lsum[POS(i,j,nFeatures)];
+                Lsum[POS(i,j,nFeatures)] = 0;
+            }
+            if (i < nItems) {
+                RT[POS(i,j,nFeatures)] -= RTsum[POS(i,j,nFeatures)];
+                RTsum[POS(i,j,nFeatures)] = 0;
+            }
+        }
 }
 
 void loop() {
@@ -259,23 +257,23 @@ void loop() {
 }
 
 void print_recomendations() {
-    // int index = 0;
+    int index = 0;
 
-    // for (int user = 0; user < nUsers; user++) {
-    //     double max = -1;
-    //     int recomendation;
+    for (int user = 0; user < nUsers; user++) {
+        double max = -1;
+        int recomendation;
 
-    //     for (int item = 0; item < nItems; item++) {
-    //         if (index < nNonZero && A[index][0] == user && A[index][1] == item) {
-    //             index++;
-    //             continue;
-    //         }
+        for (int item = 0; item < nItems; item++) {
+            if (index < nNonZero && A[POS(index,0,3)] == user && A[POS(index,1,3)] == item) {
+                index++;
+                continue;
+            }
 
-    //         if (B[user][item] > max) {
-    //             max = B[user][item];
-    //             recomendation = item;
-    //         }
-    //     }
-    //     printf("%d\n", recomendation);
-    // }
+            if (B[POS(user,item,nItems)] > max) {
+                max = B[POS(user,item,nItems)];
+                recomendation = item;
+            }
+        }
+        printf("%d\n", recomendation);
+    }
 }
