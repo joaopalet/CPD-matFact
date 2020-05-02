@@ -27,7 +27,7 @@ void loop();
 void print_recomendations();
 
 // Global Variables
-int iterations, nFeatures, nUsers, nItems, nNonZero, numThreads, max, block_size, id, nproc;
+int iterations, nFeatures, nUsers, nItems, nNonZero, numThreads, max, block_size, id, nproc, nElements = 0;
 int *A;
 double *L, *R, *RT, *B, *Lsum, *RTsum;
 double alpha;
@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
     block_size = BLOCK_SIZE(id, nproc, nUsers);
 
     create_matrix_structures();
-    int elem_number;
+
     if(!id) {
         // Read all the input and create the necessary structures
         read_input(file_pointer);
@@ -78,12 +78,11 @@ int main(int argc, char **argv) {
         //              MPI_DOUBLE, i, i, MPI_COMM_WORLD);
     
     } else {
-        //MPI_Recv(L, block_size, MPI_INT, 0, id, MPI_COMM_WORLD, &status);
-        //MPI_Recv(RT, nItems * nFeatures, MPI_DOUBLE, 0, id, MPI_COMM_WORLD, &status);
-        printf("1 recv %d\n", id);
-        MPI_Recv(&elem_number, 1, MPI_INT, 0, id, MPI_COMM_WORLD, &status);
-        printf("2 recv %d\n", id);
-        MPI_Recv(A, elem_number * 3, MPI_INT, 0, id, MPI_COMM_WORLD, &status);
+        MPI_Recv(&nElements, 1, MPI_INT, 0, id, MPI_COMM_WORLD, &status);
+        printf("I am process %d. Received message 1.\n", id);
+        MPI_Recv(A, nElements * 3, MPI_INT, 0, id, MPI_COMM_WORLD, &status);
+        printf("I am process %d. Received message 2.\n", id);
+
         // Receive L
         // MPI_Recv(L, BLOCK_SIZE(id, nproc, nUsers) * nFeatures, MPI_DOUBLE, 0, id, MPI_COMM_WORLD, &status);
     }
@@ -91,19 +90,14 @@ int main(int argc, char **argv) {
     // Broadcast RT
     // MPI_Bcast(RT, nItems * nFeatures, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
 
-    printf("%d\n\n\n", id);
-    if (id)
-    {
-        print_matrix_int(A, elem_number, 3);
-    } else {
-        print_matrix_int(A, 2, 3);
-    }
-    
+    printf("I am processor %d. This is my A:\n", id);
+    print_matrix_int(A, nElements, 3);
+    printf("\n\n\n");
     
     // print_matrix_double(L, BLOCK_SIZE(id, nproc, nUsers), nFeatures);
-    // printf("\n\n");
+    // printf("\n");
     // print_matrix_double(RT, nItems, nFeatures);
 
     // loop();
@@ -137,40 +131,36 @@ void read_input(FILE *file_pointer) {
         fscanf(file_pointer, "%d", &n);
         fscanf(file_pointer, "%d", &m);
         fscanf(file_pointer, "%lf", &v);
-
         
         if (n <= high) {
             if (proc_number == 0) {
-                // printf("%d\n", n);
-                // printf("%d\n", m);
-                // printf("%f\n", v);
-                // printf("\n\n");
-                // printf("%d\n", POS(i,0,3));
-                // printf("%d\n", POS(i,1,3));
-                // printf("%d\n", POS(i,2,3));
                 A[POS(i,0,3)] = n;
                 A[POS(i,1,3)] = m;
                 A[POS(i,2,3)] = v;
+
+                nElements++;
             } else {
                 buffer[POS(elem_number,0,3)] = n;
                 buffer[POS(elem_number,1,3)] = m;
                 buffer[POS(elem_number,2,3)] = v;
+
                 elem_number++;
             }
 
             if (i == nNonZero - 1)
             {
-                printf("send to proc: %d message 1\n", proc_number);
+                printf("Sending non zeros to process %d (message 1)\n", proc_number);
                 MPI_Send(&elem_number, 1, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
-                printf("send to proc: %d message 2\n", proc_number);
+                printf("Sending non zeros to process %d (message 2)\n", proc_number);
                 MPI_Send(buffer, elem_number * 3, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
             }
         } else {
             if (proc_number) {
-                printf("send to proc: %d message 1\n", proc_number);
+                printf("Sending non zeros to process %d (message 1)\n", proc_number);
                 MPI_Send(&elem_number, 1, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
-                printf("send to proc: %d message 2\n", proc_number);
+                printf("Sending non zeros to process %d (message 2)\n", proc_number);
                 MPI_Send(buffer, elem_number * 3, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
+
                 elem_number = 0;
             }
 
