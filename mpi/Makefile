@@ -7,4 +7,4 @@ clean:
 	rm -f *.o matFact-mpi
 
 run:
-	./matFact-mpi ../instances/inst30-40-10-2-10.in
+	mpirun -n 3 ./matFact-mpi ../instances/inst0.in
