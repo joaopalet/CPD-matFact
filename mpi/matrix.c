@@ -8,8 +8,8 @@
 // MATRICES OPERATIONS
 // ---------------------
 
-void multiply_non_zeros(double *L, double *RT, double *B, int *A, int nNonZero, int nFeatures, int nItems) {
-    for (int n = 0; n < nNonZero; n++) {
+void multiply_non_zeros(double *L, double *RT, double *B, int *A, int nElements, int nFeatures, int nItems) {
+    for (int n = 0; n < nElements; n++) {
         int i = A[POS(n,0,3)];
         int j = A[POS(n,1,3)];
 
@@ -51,28 +51,12 @@ double *transpose_matrix(double *M, int n, int m) {
 int *create_compact_matrix(int n) {
     int len = sizeof(int) * 3 * n; 
     int *M = (int *)malloc(len); 
-  
-    // ptr is now pointing to the first element in of 2D array 
-    // int *ptr = (int *)(M + n); 
-  
-    // // for loop to point rows pointer to appropriate location in 2D array 
-    // for(int i = 0; i < n; i++) 
-    //     M[i] = (ptr + 3 * i);
-
     return M;
 }
 
 double *create_matrix_double(int r, int c) {
     int len = sizeof(double) * c * r; 
     double *M = (double *)malloc(len); 
-  
-    // ptr is now pointing to the first element in of 2D array 
-    // double *ptr = (double *)(M + r); 
-  
-    // // for loop to point rows pointer to appropriate location in 2D array 
-    // for(int i = 0; i < r; i++) 
-    //     M[i] = (ptr + c * i);
-
     return M;
 }
 
