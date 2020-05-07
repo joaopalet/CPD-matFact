@@ -8,16 +8,17 @@
 // MATRICES OPERATIONS
 // ---------------------
 
-void multiply_non_zeros(double *L, double *RT, double *B, int *A, int nElements, int nFeatures, int nItems) {
+void multiply_non_zeros(double *L, double *RT, double *B, int *A, int nElements, int nFeatures, int nItems, int block_low) {
     for (int n = 0; n < nElements; n++) {
         int i = A[POS(n,0,3)];
         int j = A[POS(n,1,3)];
+        int i2 = i - block_low;
 
         double sum = 0;
         for (int  k= 0; k < nFeatures; k++) {
-            sum += L[POS(i,k,nFeatures)] * RT[POS(j,k,nFeatures)];
+            sum += L[POS(i2,k,nFeatures)] * RT[POS(j,k,nFeatures)];
         }
-        B[POS(i,j,nItems)] = sum;
+        B[POS(i2,j,nItems)] = sum;
     }
 }
 
@@ -49,14 +50,12 @@ double *transpose_matrix(double *M, int n, int m) {
 // -------------------
 
 int *create_compact_matrix(int n) {
-    int len = sizeof(int) * 3 * n; 
-    int *M = (int *)malloc(len); 
+    int *M = (int *)calloc(3 * n, sizeof(int));
     return M;
 }
 
 double *create_matrix_double(int r, int c) {
-    int len = sizeof(double) * c * r; 
-    double *M = (double *)malloc(len); 
+    double *M = (double *)calloc(c * r, sizeof(double)); 
     return M;
 }
 

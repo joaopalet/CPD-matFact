@@ -79,9 +79,10 @@ int main(int argc, char **argv) {
     
     } else {
         MPI_Recv(&nElements, 1, MPI_INT, 0, id, MPI_COMM_WORLD, &status);
-        printf("I am process %d. Received message 1.\n", id);
+
+        A = create_compact_matrix(nElements);
+
         MPI_Recv(A, nElements * 3, MPI_INT, 0, id, MPI_COMM_WORLD, &status);
-        printf("I am process %d. Received message 2.\n", id);
 
         // Receive L
         MPI_Recv(L, BLOCK_SIZE(id, nproc, nUsers) * nFeatures, MPI_DOUBLE, 0, id, MPI_COMM_WORLD, &status);
@@ -90,25 +91,14 @@ int main(int argc, char **argv) {
     // Broadcast RT
     MPI_Bcast(RT, nItems * nFeatures, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    printf("I am processor %d. This is my A:\n", id);
-    print_matrix_int(A, nElements, 3);
-    
-    printf("I am processor %d. This is my L:\n", id);
-    print_matrix_double(L, BLOCK_SIZE(id, nproc, nUsers), nFeatures);
-
-    printf("I am processor %d. This is my R:\n", id);
-    print_matrix_double(RT, nItems, nFeatures);
-
-    printf("\n\n\n");
-
     MPI_Barrier(MPI_COMM_WORLD);
 
     loop();
 
-    // print_recomendations();
+    if (!id) print_recomendations();
 
     free_matrix_structures();
-    
+
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
     
@@ -119,7 +109,7 @@ int main(int argc, char **argv) {
 
 void read_input(FILE *file_pointer) {
 
-    int *buffer = create_compact_matrix(block_size);
+    int *buffer = create_compact_matrix(((block_size + 2) * nItems) * nFeatures);
 
     int proc_number = 0;
     int elem_number = 0;
@@ -147,22 +137,21 @@ void read_input(FILE *file_pointer) {
                 buffer[POS(elem_number,0,3)] = n;
                 buffer[POS(elem_number,1,3)] = m;
                 buffer[POS(elem_number,2,3)] = v;
+                A[POS(i,0,3)] = n;
+                A[POS(i,1,3)] = m;
+                A[POS(i,2,3)] = v;
 
                 elem_number++;
             }
 
             if (i == nNonZero - 1)
             {
-                printf("Sending non zeros to process %d (message 1)\n", proc_number);
                 MPI_Send(&elem_number, 1, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
-                printf("Sending non zeros to process %d (message 2)\n", proc_number);
                 MPI_Send(buffer, elem_number * 3, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
             }
         } else {
             if (proc_number) {
-                printf("Sending non zeros to process %d (message 1)\n", proc_number);
                 MPI_Send(&elem_number, 1, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
-                printf("Sending non zeros to process %d (message 2)\n", proc_number);
                 MPI_Send(buffer, elem_number * 3, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
             
                 elem_number = 0;
@@ -171,23 +160,26 @@ void read_input(FILE *file_pointer) {
             buffer[POS(elem_number,0,3)] = n;
             buffer[POS(elem_number,1,3)] = m;
             buffer[POS(elem_number,2,3)] = v;
+            A[POS(i,0,3)] = n;
+            A[POS(i,1,3)] = m;
+            A[POS(i,2,3)] = v;
             elem_number++;
 
             proc_number++;
         }
     }
     
+    free_matrix_int(buffer);
     fclose(file_pointer);
 }
 
 void create_matrix_structures() {
-    A = create_compact_matrix(block_size);
-
     if(id) {
+        B = create_matrix_double(block_size, nItems); 
         L = create_matrix_double(block_size, nFeatures);
         RT = create_matrix_double(nItems, nFeatures);
-        B = create_matrix_double(block_size, nItems); 
     } else {
+        A = create_compact_matrix(nNonZero);
         B = create_matrix_double(nUsers, nItems); 
         L = create_matrix_double(nUsers, nFeatures);
         R = create_matrix_double(nFeatures, nItems);
@@ -199,15 +191,15 @@ void create_matrix_structures() {
 }
 
 void free_matrix_structures() {
-    free_matrix_int(A);
-    free_matrix_double(B);
-    free_matrix_double(L);
-    free_matrix_double(Lsum);
-    free_matrix_double(RT);
-    free_matrix_double(RTsum);
+    free(A);
+    free(B);
+    free(L);
+    free(Lsum);
+    free(RT);
+    free(RTsum);
     if (!id) {
-        free_matrix_double(R);
-        free_matrix_double(RTsumcopy);
+        free(R);
+        free(RTsumcopy);
     }
 }
 
@@ -224,16 +216,16 @@ void random_fill_LR() {
 }
 
 void update() {
-    int i, j, n, k;
+    int i, j, n, k, i2;
 
     for (n = 0; n < nElements; n++) {
         i = A[POS(n,0,3)];
         j = A[POS(n,1,3)];
-        
+        i2 = i - BLOCK_LOW(id, nproc, nUsers);
 
         for (k = 0; k < nFeatures; k++) {
-            Lsum[POS(i,k,nFeatures)] += alpha * ( 2 * ( A[POS(n,2,3)] - B[POS(i,j,nItems)] ) * ( -RT[POS(j,k,nFeatures)] ) );
-            RTsum[POS(j,k,nFeatures)] += alpha * ( 2 * ( A[POS(n,2,3)] - B[POS(i,j,nItems)] ) * ( -L[POS(i,k,nFeatures)] ) );
+            Lsum[POS(i2,k,nFeatures)] += alpha * ( 2 * ( A[POS(n,2,3)] - B[POS(i2,j,nItems)] ) * ( -RT[POS(j,k,nFeatures)] ) );
+            RTsum[POS(j,k,nFeatures)] += alpha * ( 2 * ( A[POS(n,2,3)] - B[POS(i2,j,nItems)] ) * ( -L[POS(i2,k,nFeatures)] ) );
         }
     }
 
@@ -246,6 +238,8 @@ void update() {
         RTsumcopy = RTsum;
         RTsum = aux; 
     }
+
+    MPI_Barrier(MPI_COMM_WORLD);
 
     MPI_Bcast(RTsum, nItems * nFeatures, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
@@ -267,7 +261,7 @@ void update() {
 void loop() {
     
     for (int i = 0; i < iterations; i++) {
-        multiply_non_zeros(L, RT, B, A, nElements, nFeatures, nItems);
+        multiply_non_zeros(L, RT, B, A, nElements, nFeatures, nItems, BLOCK_LOW(id, nproc, nUsers));
         update();
     }
 
@@ -277,14 +271,12 @@ void loop() {
         MPI_Status status;
         for (int i = 1; i < nproc; i++) {
             // Receive L
-            // MPI_recv(buf, 32, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
             MPI_Recv(&L[POS(BLOCK_LOW(i, nproc, nUsers), 0, nFeatures)], BLOCK_SIZE(i, nproc, nUsers) * nFeatures, MPI_DOUBLE, i, i, MPI_COMM_WORLD, &status);
         }
 
         multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
-        
-        print_matrix_double(B, nUsers, nItems);
     }
+
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
