@@ -91,8 +91,6 @@ int main(int argc, char **argv) {
     // Broadcast RT
     MPI_Bcast(RT, nItems * nFeatures, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
     loop();
 
     if (!id) print_recomendations();
@@ -229,7 +227,7 @@ void update() {
         }
     }
 
-    // Fazer um reduce do Lsum e RTsum para o processo 0
+    // Process 0 gathers all the information regarding RTsum
     MPI_Reduce(RTsum, RTsumcopy, nFeatures * nItems, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (!id)
@@ -238,8 +236,6 @@ void update() {
         RTsumcopy = RTsum;
         RTsum = aux; 
     }
-
-    MPI_Barrier(MPI_COMM_WORLD);
 
     MPI_Bcast(RTsum, nItems * nFeatures, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
@@ -270,14 +266,12 @@ void loop() {
     } else {
         MPI_Status status;
         for (int i = 1; i < nproc; i++) {
-            // Receive L
+            // Process 0 receives L
             MPI_Recv(&L[POS(BLOCK_LOW(i, nproc, nUsers), 0, nFeatures)], BLOCK_SIZE(i, nproc, nUsers) * nFeatures, MPI_DOUBLE, i, i, MPI_COMM_WORLD, &status);
         }
 
         multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
     }
-
-    MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void print_recomendations() {
