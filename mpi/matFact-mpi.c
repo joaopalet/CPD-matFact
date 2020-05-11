@@ -1,21 +1,23 @@
-// Serial Implementation - Group 5
+// MPI Implementation - Group 5
+
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
 #include "matrix.h"
 
+
 // Macros
 #define RAND01 ((double) random() / (double) RAND_MAX)
 #define max(x,y) ( (x) > (y) ? (x) : (y) )
 #define POS(i,j,columns) ((i)*(columns)+(j))
-
 #define BLOCK_LOW(id,p,n) ((id)*(n)/(p))
 #define BLOCK_HIGH(id,p,n) (BLOCK_LOW((id)+1,p,n) - 1)
 #define BLOCK_SIZE(id,p,n) \
  (BLOCK_HIGH(id,p,n) - BLOCK_LOW(id,p,n) + 1)
 #define BLOCK_OWNER(index,p,n) \
 (((p)*((index)+1)-1)/(n))
+
 
 // Function declarations
 void random_fill_LR();
@@ -26,11 +28,13 @@ void update();
 void loop();
 void print_recomendations();
 
+
 // Global Variables
 int iterations, nFeatures, nUsers, nItems, nNonZero, numThreads, max, block_size, id, nproc, nElements = 0;
-int *A;
+int *A, *recomendations;
 double *L, *R, *RT, *B, *Lsum, *RTsum, *RTsumcopy;
 double alpha;
+
 
 // Main
 int main(int argc, char **argv) {
@@ -93,7 +97,7 @@ int main(int argc, char **argv) {
 
     loop();
 
-    if (!id) print_recomendations();
+    print_recomendations();
 
     free_matrix_structures();
 
@@ -102,7 +106,6 @@ int main(int argc, char **argv) {
     
     return 0;
 }
-
 
 
 void read_input(FILE *file_pointer) {
@@ -129,21 +132,15 @@ void read_input(FILE *file_pointer) {
                 A[POS(i,0,3)] = n;
                 A[POS(i,1,3)] = m;
                 A[POS(i,2,3)] = v;
-
                 nElements++;
             } else {
                 buffer[POS(elem_number,0,3)] = n;
                 buffer[POS(elem_number,1,3)] = m;
                 buffer[POS(elem_number,2,3)] = v;
-                A[POS(i,0,3)] = n;
-                A[POS(i,1,3)] = m;
-                A[POS(i,2,3)] = v;
-
                 elem_number++;
             }
 
-            if (i == nNonZero - 1)
-            {
+            if (i == nNonZero - 1) {
                 MPI_Send(&elem_number, 1, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
                 MPI_Send(buffer, elem_number * 3, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
             }
@@ -151,18 +148,13 @@ void read_input(FILE *file_pointer) {
             if (proc_number) {
                 MPI_Send(&elem_number, 1, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
                 MPI_Send(buffer, elem_number * 3, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
-            
                 elem_number = 0;
             }
 
             buffer[POS(elem_number,0,3)] = n;
             buffer[POS(elem_number,1,3)] = m;
             buffer[POS(elem_number,2,3)] = v;
-            A[POS(i,0,3)] = n;
-            A[POS(i,1,3)] = m;
-            A[POS(i,2,3)] = v;
             elem_number++;
-
             proc_number++;
         }
     }
@@ -170,6 +162,7 @@ void read_input(FILE *file_pointer) {
     free_matrix_int(buffer);
     fclose(file_pointer);
 }
+
 
 void create_matrix_structures() {
     if(id) {
@@ -188,6 +181,7 @@ void create_matrix_structures() {
     RTsum = create_matrix_double(nItems, nFeatures);
 }
 
+
 void free_matrix_structures() {
     free(A);
     free(B);
@@ -199,7 +193,9 @@ void free_matrix_structures() {
         free(R);
         free(RTsumcopy);
     }
+    free(recomendations);
 }
+
 
 void random_fill_LR() {
     srandom(0);
@@ -212,6 +208,7 @@ void random_fill_LR() {
         for (int j = 0; j < nItems; j++)
             R[POS(i,j,nItems)] = RAND01 / (double) nFeatures;
 }
+
 
 void update() {
     int i, j, n, k, i2;
@@ -254,6 +251,7 @@ void update() {
         }
 }
 
+
 void loop() {
     
     for (int i = 0; i < iterations; i++) {
@@ -261,28 +259,22 @@ void loop() {
         update();
     }
 
-    if (id) {   
-        MPI_Send(L, BLOCK_SIZE(id, nproc, nUsers) * nFeatures, MPI_DOUBLE, 0, id, MPI_COMM_WORLD);
-    } else {
-        MPI_Status status;
-        for (int i = 1; i < nproc; i++) {
-            // Process 0 receives L
-            MPI_Recv(&L[POS(BLOCK_LOW(i, nproc, nUsers), 0, nFeatures)], BLOCK_SIZE(i, nproc, nUsers) * nFeatures, MPI_DOUBLE, i, i, MPI_COMM_WORLD, &status);
-        }
-
-        multiply_matrix(L, RT, B, nUsers, nItems, nFeatures);
-    }
+    multiply_matrix(L, RT, B, block_size, nItems, nFeatures);
 }
 
-void print_recomendations() {
-    int index = 0;
 
-    for (int user = 0; user < nUsers; user++) {
+void print_recomendations() {
+    if (id)
+        recomendations = (int *) malloc(block_size * sizeof(int));
+    else
+        recomendations = (int *) malloc(nUsers * sizeof(int));
+
+    for (int user = 0, i = 0, index = 0; user < block_size; user++) {
         double max = -1;
         int recomendation;
 
         for (int item = 0; item < nItems; item++) {
-            if (index < nNonZero && A[POS(index,0,3)] == user && A[POS(index,1,3)] == item) {
+            if (index < nElements && ( A[POS(index,0,3)] - BLOCK_LOW(id, nproc, nUsers) ) == user && A[POS(index,1,3)] == item) {
                 index++;
                 continue;
             }
@@ -292,6 +284,18 @@ void print_recomendations() {
                 recomendation = item;
             }
         }
-        printf("%d\n", recomendation);
+        recomendations[i++] = recomendation;
+    }
+
+    if (id) {   
+        MPI_Send(recomendations, block_size, MPI_INT, 0, id, MPI_COMM_WORLD);
+    } else {
+        MPI_Status status;
+        for (int i = 1; i < nproc; i++) {
+            // Process 0 receives recomendations
+            MPI_Recv(&recomendations[BLOCK_LOW(i, nproc, nUsers)], BLOCK_SIZE(i, nproc, nUsers), MPI_INT, i, i, MPI_COMM_WORLD, &status);
+        }
+        for (int i = 0; i < nUsers; i++)
+            printf("%d\n", recomendations[i]);
     }
 }
