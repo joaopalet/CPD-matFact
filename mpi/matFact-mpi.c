@@ -75,12 +75,6 @@ int main(int argc, char **argv) {
         // by working in the same chunks of memory -> cache hits 
         RT = transpose_matrix(R, nFeatures, nItems);
 
-        // Scatter L
-        for (int i = 1; i < nproc; i++)
-            MPI_Send(&L[POS(BLOCK_LOW(i, nproc, nUsers), 0, nFeatures)], 
-                     BLOCK_SIZE(i, nproc, nUsers) * nFeatures, 
-                     MPI_DOUBLE, i, i, MPI_COMM_WORLD);
-    
     } else {
         MPI_Recv(&nElements, 1, MPI_INT, 0, id, MPI_COMM_WORLD, &status);
 
@@ -167,16 +161,15 @@ void read_input(FILE *file_pointer) {
 void create_matrix_structures() {
     if(id) {
         B = create_matrix_double(block_size, nItems); 
-        L = create_matrix_double(block_size, nFeatures);
         RT = create_matrix_double(nItems, nFeatures);
     } else {
         A = create_compact_matrix(nNonZero);
         B = create_matrix_double(nUsers, nItems); 
-        L = create_matrix_double(nUsers, nFeatures);
         R = create_matrix_double(nFeatures, nItems);
         RTsumcopy = create_matrix_double(nItems, nFeatures);
     }
 
+    L = create_matrix_double(block_size, nFeatures);
     Lsum = create_matrix_double(block_size, nFeatures);
     RTsum = create_matrix_double(nItems, nFeatures);
 }
@@ -200,9 +193,22 @@ void free_matrix_structures() {
 void random_fill_LR() {
     srandom(0);
 
-    for (int i = 0; i < nUsers; i++)
+    double *buffer = create_matrix_double(block_size + 1, nFeatures);
+
+    for (int i = 0; i < block_size; i++)
         for (int j = 0; j < nFeatures; j++)
             L[POS(i,j,nFeatures)] = RAND01 / (double) nFeatures;
+
+    for (int i = block_size, p = 1; i < nUsers; i++) {
+        for (int j = 0; j < nFeatures; j++)
+            buffer[POS(i - BLOCK_LOW(p, nproc, nUsers),j,nFeatures)] = RAND01 / (double) nFeatures; 
+
+        if (BLOCK_OWNER(i + 1,nproc,nUsers) > p) {
+                MPI_Send(buffer, BLOCK_SIZE(p, nproc, nUsers) * nFeatures, 
+                        MPI_DOUBLE, p, p, MPI_COMM_WORLD);
+                p++;
+        }
+    }
 
     for (int i = 0; i < nFeatures; i++)
         for (int j = 0; j < nItems; j++)
@@ -224,17 +230,19 @@ void update() {
         }
     }
 
-    // Process 0 gathers all the information regarding RTsum
-    MPI_Reduce(RTsum, RTsumcopy, nFeatures * nItems, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, RTsum, nFeatures * nItems, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-    if (!id)
-    {
-        double * aux = RTsumcopy;
-        RTsumcopy = RTsum;
-        RTsum = aux; 
-    }
+    // // Process 0 gathers all the information regarding RTsum
+    // MPI_Reduce(RTsum, RTsumcopy, nFeatures * nItems, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-    MPI_Bcast(RTsum, nItems * nFeatures, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    // if (!id)
+    // {
+    //     double *aux = RTsumcopy;
+    //     RTsumcopy = RTsum;
+    //     RTsum = aux; 
+    // }
+
+    // MPI_Bcast(RTsum, nItems * nFeatures, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     for (int i = 0; i < max(block_size, nItems); i++)
         for (int j = 0; j < nFeatures; j++) {
