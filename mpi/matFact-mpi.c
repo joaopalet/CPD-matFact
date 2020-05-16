@@ -170,18 +170,17 @@ void read_input(FILE *file_pointer) {
 
 void create_matrix_structures() {
     if(id) {
-        B = create_matrix_double(block_size, nItems); 
         RT = create_matrix_double(nItems, nFeatures);
     } else {
         A = create_compact_matrix(nNonZero);
-        B = create_matrix_double(nUsers, nItems); 
         R = create_matrix_double(nFeatures, nItems);
-        RTsumcopy = create_matrix_double(nItems, nFeatures);
     }
 
     L = create_matrix_double(block_size, nFeatures);
     Lsum = create_matrix_double(block_size, nFeatures);
     RTsum = create_matrix_double(nItems, nFeatures);
+    B = create_matrix_double(block_size, nItems); 
+
 }
 
 
@@ -194,7 +193,6 @@ void free_matrix_structures() {
     free(RTsum);
     if (!id) {
         free(R);
-        free(RTsumcopy);
     }
     free(recomendations);
 }
@@ -263,8 +261,6 @@ void update() {
             if (i < nItems) {
                 RT[POS(i,j,nFeatures)] -= RTsum[POS(i,j,nFeatures)];
                 RTsum[POS(i,j,nFeatures)] = 0;
-                if (!id)
-                    RTsumcopy[POS(i,j,nFeatures)] = 0;
             }
         }
 }
