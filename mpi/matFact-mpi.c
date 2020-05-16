@@ -39,6 +39,8 @@ double alpha;
 // Main
 int main(int argc, char **argv) {
 
+    double start, end;
+
     if(argc != 2) {
         printf("Invalid number of arguments provided: matFact [fileInput]");
         return -1;
@@ -46,6 +48,8 @@ int main(int argc, char **argv) {
 
     MPI_Init(&argc, &argv);
     MPI_Status status;
+
+    if(!id) { start = MPI_Wtime(); }
 
 	MPI_Comm_size(MPI_COMM_WORLD, &nproc);
 	MPI_Comm_rank(MPI_COMM_WORLD, &id);
@@ -96,6 +100,12 @@ int main(int argc, char **argv) {
     free_matrix_structures();
 
     MPI_Barrier(MPI_COMM_WORLD);
+
+    if (!id) {
+        end = MPI_Wtime();
+        printf("\n\n\n%lf seconds\n", end - start);
+    }
+
     MPI_Finalize();
     
     return 0;
