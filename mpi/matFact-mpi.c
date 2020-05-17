@@ -240,18 +240,6 @@ void update() {
 
     MPI_Allreduce(MPI_IN_PLACE, RTsum, nFeatures * nItems, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-    // // Process 0 gathers all the information regarding RTsum
-    // MPI_Reduce(RTsum, RTsumcopy, nFeatures * nItems, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-
-    // if (!id)
-    // {
-    //     double *aux = RTsumcopy;
-    //     RTsumcopy = RTsum;
-    //     RTsum = aux; 
-    // }
-
-    // MPI_Bcast(RTsum, nItems * nFeatures, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
     for (int i = 0; i < max(block_size, nItems); i++)
         for (int j = 0; j < nFeatures; j++) {
             if (i < block_size) {
