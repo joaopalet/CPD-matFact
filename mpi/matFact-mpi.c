@@ -32,13 +32,13 @@ void print_recomendations();
 // Global Variables
 int iterations, nFeatures, nUsers, nItems, nNonZero, numThreads, max, block_size, id, nproc, nElements = 0;
 int *A, *recomendations;
-double *L, *R, *RT, *B, *Lsum, *RTsum, *RTsumcopy;
+double *L, *R, *RT, *B, *Lsum, *RTsum;
 double alpha;
 
 
 // Main
 int main(int argc, char **argv) {
-
+    
     double start, end;
 
     if(argc != 2) {
@@ -65,10 +65,11 @@ int main(int argc, char **argv) {
     if (id) fclose(file_pointer);
 
     block_size = BLOCK_SIZE(id, nproc, nUsers);
-
+    
     create_matrix_structures();
 
     if(!id) {
+        
         // Read all the input and create the necessary structures
         read_input(file_pointer);
 
@@ -114,7 +115,7 @@ int main(int argc, char **argv) {
 
 void read_input(FILE *file_pointer) {
 
-    int *buffer = create_compact_matrix(((block_size + 2) * nItems) * nFeatures);
+    int *buffer = create_compact_matrix(((block_size + 2) * nItems) * 3);
 
     int proc_number = 0;
     int elem_number = 0;
@@ -130,7 +131,7 @@ void read_input(FILE *file_pointer) {
         fscanf(file_pointer, "%d", &n);
         fscanf(file_pointer, "%d", &m);
         fscanf(file_pointer, "%lf", &v);
-        
+
         if (n <= high) {
             if (proc_number == 0) {
                 A[POS(i,0,3)] = n;
@@ -154,7 +155,6 @@ void read_input(FILE *file_pointer) {
                 MPI_Send(buffer, elem_number * 3, MPI_INT, proc_number, proc_number, MPI_COMM_WORLD);
                 elem_number = 0;
             }
-
             buffer[POS(elem_number,0,3)] = n;
             buffer[POS(elem_number,1,3)] = m;
             buffer[POS(elem_number,2,3)] = v;
@@ -212,8 +212,7 @@ void random_fill_LR() {
             buffer[POS(i - BLOCK_LOW(p, nproc, nUsers),j,nFeatures)] = RAND01 / (double) nFeatures; 
 
         if (BLOCK_OWNER(i + 1,nproc,nUsers) > p) {
-                MPI_Send(buffer, BLOCK_SIZE(p, nproc, nUsers) * nFeatures, 
-                        MPI_DOUBLE, p, p, MPI_COMM_WORLD);
+                MPI_Send(buffer, BLOCK_SIZE(p, nproc, nUsers) * nFeatures, MPI_DOUBLE, p, p, MPI_COMM_WORLD);
                 p++;
         }
     }
