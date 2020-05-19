@@ -49,8 +49,6 @@ int main(int argc, char **argv) {
     MPI_Init(&argc, &argv);
     MPI_Status status;
 
-    if(!id) { start = MPI_Wtime(); }
-
 	MPI_Comm_size(MPI_COMM_WORLD, &nproc);
 	MPI_Comm_rank(MPI_COMM_WORLD, &id);
     
@@ -101,11 +99,6 @@ int main(int argc, char **argv) {
     free_matrix_structures();
 
     MPI_Barrier(MPI_COMM_WORLD);
-
-    if (!id) {
-        end = MPI_Wtime();
-        printf("\n\n\n%lf seconds\n", end - start);
-    }
 
     MPI_Finalize();
     
@@ -265,10 +258,7 @@ void loop() {
 
 
 void print_recomendations() {
-    if (id)
-        recomendations = (int *) malloc(block_size * sizeof(int));
-    else
-        recomendations = (int *) malloc(nUsers * sizeof(int));
+    recomendations = (int *) malloc((block_size + 1) * sizeof(int));
 
     for (int user = 0, i = 0, index = 0; user < block_size; user++) {
         double max = -1;
@@ -291,12 +281,16 @@ void print_recomendations() {
     if (id) {   
         MPI_Send(recomendations, block_size, MPI_INT, 0, id, MPI_COMM_WORLD);
     } else {
+        for (int i = 0; i < block_size; i++)
+                printf("%d\n", recomendations[i]);
+
         MPI_Status status;
         for (int i = 1; i < nproc; i++) {
+            int proc_block_size = BLOCK_SIZE(i, nproc, nUsers);
             // Process 0 receives recomendations
-            MPI_Recv(&recomendations[BLOCK_LOW(i, nproc, nUsers)], BLOCK_SIZE(i, nproc, nUsers), MPI_INT, i, i, MPI_COMM_WORLD, &status);
+            MPI_Recv(recomendations, BLOCK_SIZE(i, nproc, nUsers), MPI_INT, i, i, MPI_COMM_WORLD, &status);
+            for (int i = 0; i < proc_block_size; i++)
+                printf("%d\n", recomendations[i]);
         }
-        for (int i = 0; i < nUsers; i++)
-            printf("%d\n", recomendations[i]);
     }
 }
